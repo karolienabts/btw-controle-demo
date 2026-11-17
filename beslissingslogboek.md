@@ -21,6 +21,7 @@ de keuzes voor deze demo.
 | 2026-11-17 | Code uit FactuurTool **gekopieerd, niet aangepast** | Wat de demo toont, is exact wat de echte tool doet | voorstel Claude, aanvaard |
 | 2026-11-17 | Drie publieke BTW-nummers van grote Belgische bedrijven als "geldige" voorbeelden | Verzonnen nummers zijn altijd ongeldig in VIES; zo zie je alle drie de uitkomsten | voorstel Claude |
 | 2026-11-17 | Schakelaar "demo zonder internet" met vaste antwoorden | De presentatie mag niet afhangen van een drukke EU-server | voorstel Claude |
+| 2026-11-17 | Indeelregel `deel_in` verhuisd van `app.py` naar `pipeline.py`, met 4 eigen tests | De opdracht vraagt alle regels als pure functies in `pipeline.py`; in `app.py` waren ze niet te testen | Karolien, na controle tegen de opdracht |
 
 ## Wat de tests niet testten
 
