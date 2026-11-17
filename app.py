@@ -1,8 +1,8 @@
 """Demo: hoe FactuurTool BTW-nummers controleert (op verzonnen demodata).
 
 Starten:  streamlit run app.py
-De logica zit in btw.py en vies.py (ongewijzigd uit FactuurTool). Dit bestand toont enkel
-elke stap, met hoeveel lijnen erin en eruit gaan.
+Alle regels zitten in pipeline.py (en vies.py voor de vraag aan de EU). Dit bestand toont
+enkel elke stap, met hoeveel lijnen erin en eruit gaan.
 """
 import inspect
 from pathlib import Path
@@ -10,72 +10,24 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-import btw
-import instellingen as I
+import pipeline as P
 import vies
+from pipeline import B2B, B2C, KIES, TE_BESLISSEN
 
 DATA = Path(__file__).parent / "data" / "demo_lijnen.csv"
-KIES, B2B, B2C, TE_BESLISSEN = "? kies", "B2B", "B2C", "Te beslissen"
-
-# Antwoorden voor "demo zonder internet": deze drie (publieke BTW-nummers van grote bedrijven)
-# zijn geldig in VIES, nagekeken op 17/11/2026. Alle andere EU-nummers in de demo zijn verzonnen.
-OFFLINE_GELDIG = {("BE", "0202239951"), ("BE", "0417497106"), ("BE", "0400378485")}
 
 st.set_page_config(page_title="BTW-controle", page_icon="🧾", layout="wide")
 
 
-# ------------------------------------------------------------------ de stappen (zonder schermen)
-
 @st.cache_data
 def lees_demo() -> pd.DataFrame:
-    return pd.read_csv(DATA, dtype={"invoice_number": str, "company": str, "vat_id": str,
-                                    "country_code": str})
-
-
-def stap1_kuis_en_zoek(ruw: pd.DataFrame) -> pd.DataFrame:
-    df = ruw.copy()
-    df["vat_id_ruw"] = df["vat_id"]
-    df["vat_id"] = df["vat_id"].map(btw.normaliseer_btw).astype(object)
-    return btw.voeg_btw_toe(df)
+    return P.lees_demo(DATA)
 
 
 @st.cache_data(show_spinner=False)
 def vies_live(te_controleren: tuple) -> dict:
     """Live VIES. Gecachet: dezelfde nummers vragen we niet twee keer aan de EU."""
     return vies.controleer_alle({b: (land, nr, opm) for b, land, nr, opm in te_controleren})
-
-
-def vies_offline(formaten: dict) -> dict:
-    uit = {}
-    for b, (land, nr, _) in formaten.items():
-        if land not in I.EU_LANDEN:
-            uit[b] = vies.controleer_een(land, nr)          # niet-EU: belt VIES niet
-        elif (land, nr) in OFFLINE_GELDIG:
-            uit[b] = (vies.GELDIG, "geldig volgens VIES (vast antwoord, demo zonder internet)")
-        else:
-            uit[b] = (vies.ONGELDIG, "bestaat niet volgens VIES (vast antwoord, demo zonder internet)")
-    return uit
-
-
-def deel_in(df: pd.DataFrame, status: dict, keuzes: dict) -> pd.DataFrame:
-    """Elke lijn krijgt een groep en een reden. Dezelfde regels als in FactuurTool."""
-    groepen, redenen = [], []
-    for b in df["btw_nummer"]:
-        if not isinstance(b, str):
-            g, r = B2C, "geen BTW-nummer"
-        elif b not in status:
-            g, r = TE_BESLISSEN, "nog niet gecontroleerd in VIES"
-        elif status[b][0] == vies.GELDIG:
-            g, r = B2B, "geldig in VIES"
-        elif status[b][0] == vies.ONBEKEND:
-            g, r = B2B, "niet te controleren → B2B, met melding"
-        elif keuzes.get(b, KIES) in (B2B, B2C):
-            g, r = keuzes[b], f"ongeldig in VIES → jij koos {keuzes[b]}"
-        else:
-            g, r = TE_BESLISSEN, "ongeldig in VIES → jij moet beslissen"
-        groepen.append(g)
-        redenen.append(r)
-    return df.assign(groep=groepen, reden=redenen)
 
 
 def toon_code(*functies):
@@ -95,16 +47,16 @@ with st.sidebar:
                "publieke BTW-nummers van grote Belgische bedrijven.")
 
 ruw = lees_demo()
-df = stap1_kuis_en_zoek(ruw)
-formaten = btw.btw_voor_vies(df)
+df = P.kuis_en_zoek(ruw)
+formaten = P.btw_voor_vies(df)
 
 if offline:
-    status = vies_offline(formaten)
+    status = P.vies_offline(formaten)
 else:
     status = st.session_state.get("vies_live")
-ongeldig = sorted(b for b, (s, _) in (status or {}).items() if s == vies.ONGELDIG)
+ongeldig = P.ongeldige_nummers(status or {})
 keuzes = {b: st.session_state.get(f"keuze_{b}", KIES) for b in ongeldig}
-resultaat = deel_in(df, status or {}, keuzes)
+resultaat = P.deel_in(df, status or {}, keuzes)
 
 # ------------------------------------------------------------------ trechter
 
@@ -142,7 +94,7 @@ with st.expander(f"1 · Kuisen en vinden: {n} lijnen → {uit_vat + uit_comp} me
         column_config={"vat_id_ruw": "vat_id (ruw)", "vat_id": "vat_id (gekuist)"})
     st.caption(f"{uit_vat} lijnen met `vat_id`, {uit_comp} met een nummer in `company`, "
                f"{n - uit_vat - uit_comp} zonder BTW-nummer → die gaan straks naar B2C.")
-    toon_code(btw.normaliseer_btw, btw.zoek_btw_in_company)
+    toon_code(P.normaliseer_btw, P.zoek_btw_in_company)
 
 # ------------------------------------------------------------------ stap 2
 
@@ -153,7 +105,7 @@ with st.expander(f"2 · Klaarmaken voor VIES: {len(formaten)} unieke nummers"):
         pd.DataFrame([(b, l, nr, o) for b, (l, nr, o) in formaten.items()],
                      columns=["btw_nummer", "landcode voor VIES", "nummer voor VIES", "opmerking"]),
         hide_index=True, width="stretch")
-    toon_code(btw.vies_formaat)
+    toon_code(P.vies_formaat)
 
 # ------------------------------------------------------------------ stap 3
 
@@ -202,4 +154,4 @@ with st.expander(f"4 · Jij beslist bij twijfel: {len(ongeldig)} ongeldige numme
                    f"in de groepen = {n} lijnen en € {df['amount'].sum():,.2f} in de export.")
     else:
         st.error("Controle mislukt: de groepen tellen niet op tot de export.")
-    toon_code(deel_in)
+    toon_code(P.deel_in)
