@@ -1,0 +1,9 @@
+# Echte exports, PDF's en uitvoer van FactuurTool horen hier NOOIT in.
+*.xlsx
+*.pdf
+*.zip
+output/
+
+__pycache__/
+.pytest_cache/
+.env
