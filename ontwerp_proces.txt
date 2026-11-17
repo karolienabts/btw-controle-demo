@@ -1,0 +1,32 @@
+Verwerking inkomstfacturen plug&pay
+
+Maandelijks moeten de inkomstenfacturen uit plug & pay worden gedownload.
+Ik wil een programma maken dat op zichzelf kan werken, ik twijfel nog tussen hosten als streamlit applicatie of het maken van een windowsprogramma.
+Het programma moet de excel maken die we nu manueel maken, met alle tabbladen zoals in het voorbeeld "facturen_PP_oktober_26.xlsx" genereren.
+Het moet vervolgens aan de hand van een lijst die opgemaakt wordt vanuit het tabblad B2B, de B2B facturen naar een aparte map verplaatsen voor 
+Hiervoor maken we een export, dit kan als excel of als csv. Wat is werkt het gemakkelijkste voor een programma?
+
+
+Vanuit die download wordt een excel gemaakt met verschillende tabbladen zie voorbeeld "facturen_PP_oktober_26.xlsx"
+Eerst wordt de worksheet gecleaned van overbodige kolommen. Hiervoor is PP_invoice_cleanup.osts gemaakt. Het doet normaal de volgende stappen:
+1. Overbodige info verwijderen. Je behoudt de volgende kolommen: order-id, product, quantity, sku, country, company, first name, lastname, invoice nr, invoice date, amount, amount tax, vat, vat id, vat rate.
+2. selecteer al je kolommen en dubbelklik op de lijn tussen 2 kolommen zodat ze allemaal de breedte aannemen van het langste veld in je kolom.
+3. kolom met bedragen als valuta instellen
+4. BTW nummers (kolom vat_id) sorteren van A naar Z (kolom selecteren → gegevens → sorteren van a naar z)
+5. punten uit BTW nummers verwijderen door de kolom te selecteren en je . toe zoeken en te laten vervangen door 
+
+Er moet een totaal excl. BTW gemaakt worden, dit wordt dan manueel gecontroleerd met de cijfers in het dashboard
+
+Vervolgens worden er 4 tabbladen gemaakt:
+* boek: dit bevat alle lijnen met "Boek Stap uit de ratrace", maar moet in de toekomst ook alle "Masterclass investeren : The Final Chapter" met een  "amount_with_tax " van €25 of -€25 bevatten omdat die een boek cadeau krijgen. Moet verder niets mee gedaan worden, dit tabblad is voor een manuele controle of alle boeken werden verzonden (of geannulleerd)
+* B2B: dit bevat alle lijnen waar een BTW nummer werd gevonden in "vat_id" of in "company"
+	- in dit tabblad moeten de BTW nummers worden gecontroleerd door te kijken of deze bestaat in https://ec.europa.eu/taxation_customs/vies/#/vat-validation-result --> BTW nummers die niet bestaaan moeten worden geraporteerd, er moet dan beslist worden of deze facturen worden behandeld B2B of verplaatsen naar B2C
+	- lijnen met BTW nummers in company moeten gerapporteerd worden door het invoice number in een rapport te vermelden zodat kan worden nagekeken of dit moet worden aangepast voor toekomstige facturen
+	- de unieke 'invoice_number' moet een lijst worden gemaakt om de facturen B2B uit de factuurmap naar een aparte map te verplaatsen.
+*totaalfactuur_plug&pay_21%: dit zijn alle lijnen voor B2C dus zonder BTW nummer met 21% of 0% VAT_rate
+	- 0% lijnen moeten gerapporteerd worden met hun invoice_number om dit recht te zetten in de komende maand
+	- er wordt een totaal 'amount' berekend en geel gemaakt
+	- wordt een pdf print van gemaakt zoals voorbeeld "oktober_26_plug&pay_totaalfactuur_21.pdf"
+*totaalfactuur_plug&pay_6%: dit zijn alle lijnen voor B2C dus zonder BTW nummer met 6% VAT_rate
+	- er wordt een totaal 'amount' berekend en geel gemaakt
+	- wordt een pdf print van gemaakt zoals voorbeeld "oktober_26_plug&pay_totaalfactuur_21.pdf"
