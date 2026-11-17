@@ -37,6 +37,13 @@ def test_btw_in_company(company, verwacht):
     assert btw.zoek_btw_in_company(company) == verwacht
 
 
+@pytest.mark.xfail(strict=True, reason="Gekende fout: het patroon voor een Belgisch nummer zonder "
+                   "landcode past ook op een gsm-nummer. Zie beslissingslogboek.")
+def test_telefoonnummer_in_company_is_geen_btw_nummer():
+    """Wat de oorspronkelijke tests niet testten: een vals positief."""
+    assert btw.zoek_btw_in_company("Kapsalon Lies - tel 0475 123 456") is None
+
+
 def test_vat_id_gaat_voor_op_company():
     df = pd.DataFrame({"company": ["X BE0417497106"], "vat_id": ["BE0202239951"]})
     uit = btw.voeg_btw_toe(df)
